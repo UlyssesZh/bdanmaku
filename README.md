@@ -1,7 +1,7 @@
 # bdanmaku
 
 [mpv](https://mpv.io) plugin to correctly display Bilibili danmaku.
-Powered by [biliass](https://github.com/yutto-dev/biliass)
+Powered by [biliass](https://github.com/yutto-dev/biliass).
 
 ## Installation
 

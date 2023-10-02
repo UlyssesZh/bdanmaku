@@ -1,4 +1,4 @@
--- Author: UlyssesZhan <gmail.com>
+-- Author: UlyssesZhan <ulysseszhan@gmail.com>
 -- License: MIT
 -- Homepage: https://github.com/UlyssesZh/bdanmaku
 
