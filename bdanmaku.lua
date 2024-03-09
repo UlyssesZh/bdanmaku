@@ -4,31 +4,33 @@
 
 local CURL = mp.get_opt('curl_executable') or 'curl'
 local BILIASS = mp.get_opt('biliass_executable') or 'biliass'
+local TMPDIR = mp.get_opt('tmpdir') or '/tmp'
 local BILIASS_OPTS = {}
 for token in (mp.get_opt('biliass_options') or ''):gmatch('[^%s]+') do
 	BILIASS_OPTS[#BILIASS_OPTS + 1] = token
 end
 local utils = require 'mp.utils'
 
-local danmaku_changed = false
+local danmaku_track_id = nil
 local xml_filename = nil
-local danmaku_applied = false
 
-function on_sub_change(name, data)
-	local url = mp.get_property(name)
-	if not url or danmaku_changed then
+function download_xml()
+	local url = nil
+	for track_i = 0, mp.get_property('track-list/count') - 1 do
+		url = mp.get_property('track-list/'..track_i..'/external-filename')
+		if url then
+			url = url:match '%w+://comment.bilibili.com/.*%.xml$'
+			if url then
+				danmaku_track_id = track_i
+				break
+			end
+		end
+	end
+	if not danmaku_track_id then
+		mp.msg.debug('no XML danmaku found')
 		return
 	end
-	danmaku_changed = true
-
-	mp.msg.debug('sub file changed, checking whether it is XML danmaku')
-	url = url:match '%w+://comment.bilibili.com/.*%.xml$'
-	if not url then
-		mp.msg.debug('not a valid Bilibili XML danmaku URL, skipping')
-		return
-	end
-
-	xml_filename = '/tmp/'..os.time()..'.danmaku.xml'
+	xml_filename = TMPDIR..'/'..os.time()..'.danmaku.xml'
 	local curl_args = {
 		CURL, url,
 		'--silent',
@@ -37,25 +39,21 @@ function on_sub_change(name, data)
 	}
 	mp.msg.debug('curl_command: '..table.concat(curl_args, ' '))
 	local curl_result = utils.subprocess({args = curl_args})
-	if not curl_result.status == 0 then
-		mp.msg.warn('downloading XML danmaku from '..url..' failed: '..curl_result.error)
+	if curl_result.status == 0 then
+		mp.msg.debug('danmaku downloaded, will convert to ASS')
+	else
 		xml_filename = nil
-		return
+		mp.msg.warn('downloading XML danmaku from '..url..' failed: '..curl_result.error)
 	end
-	mp.msg.debug('danmaku downloaded, will convert to ASS after OSD init')
-
 end
 
-function on_osd_change(name, data)
+function replace_sub()
 	local width, height, par = mp.get_osd_size()
-	if width == 0 or height == 0 or danmaku_applied or not xml_filename then
+	if width == 0 or height == 0 or not xml_filename then
 		return
 	end
-	danmaku_applied = true
-
-	mp.msg.debug('OSD initialized, convert XML danmaku to ASS now')
 	local resolution = width..'x'..height
-	local ass_filename = '/tmp/'..os.time()..'.danmaku.ass'
+	local ass_filename = TMPDIR..'/'..os.time()..'.danmaku.ass'
 	local biliass_args = {
 		BILIASS, xml_filename,
 		'--size', resolution,
@@ -64,18 +62,23 @@ function on_osd_change(name, data)
 	}
 	mp.msg.debug('biliass_command: '..table.concat(biliass_args, ' '))
 	local biliass_result = utils.subprocess({args = biliass_args})
-	if not biliass_result.status == 0 then
+	if biliass_result.status == 0 then
+		local sid = mp.get_property('track-list/'..danmaku_track_id..'/id')
+		mp.msg.debug('deleting original subtitle sid='..sid)
+		mp.commandv('sub-remove', sid)
+		mp.msg.debug('adding new subtitle')
+		mp.commandv('sub-add', ass_filename, 'select', 'danmaku', 'danmaku')
+		for track_i = 0, mp.get_property('track-list/count') - 1 do
+			if mp.get_property('track-list/'..track_i..'/external-filename') == ass_filename then
+				danmaku_track_id = track_i
+				break
+			end
+		end
+	else
 		mp.msg.warn('converting XML danmaku from '..xml_filename..' to '..ass_filename..' failed: '..biliass_result.error)
-		return
 	end
-
-	local sid = mp.get_property('track-list/0/id')
-	mp.msg.debug('deleting original subtitle sid='..sid)
-	mp.commandv('sub-remove', sid)
-	mp.msg.debug('adding new subtitle')
-	mp.commandv('sub-add', ass_filename, 'select', 'danmaku', 'danmaku')
 end
 
-mp.observe_property('track-list/0/external-filename', nil, on_sub_change)
-mp.observe_property('osd-width', nil, on_osd_change)
-mp.observe_property('osd-height', nil, on_osd_change)
+mp.register_event('file-loaded', download_xml)
+mp.observe_property('osd-width', nil, replace_sub)
+mp.observe_property('osd-height', nil, replace_sub)
