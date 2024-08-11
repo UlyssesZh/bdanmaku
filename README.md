@@ -33,3 +33,12 @@ For example, if you want to make the opacity of danmaku to 0.1, you can do this:
 ```shell
 mpv --script-opts=biliass_options=-a\ 0.1 https://www.bilibili.com/video/BV1Sm4y1N78J
 ```
+
+## Notice for Windows users
+
+You have to specify the `tmpdir` option on Windows (e.g. `--script-opts=tmpdir=C:\tmp`).
+Otherwise, downloading danmaku will fail.
+
+Because of a [bug](https://github.com/yutto-dev/biliass/issues/28) of biliass on Windows,
+you may see errors about decoding danmaku files.
+Install [@Mark-Joy's fork](https://github.com/Mark-Joy/biliass) instead to fix this.
