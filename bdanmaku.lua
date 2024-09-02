@@ -2,11 +2,12 @@
 -- License: MIT
 -- Homepage: https://github.com/UlyssesZh/bdanmaku
 
+table.unpack = table.unpack or unpack -- 5.1 compatibility
 local CURL = mp.get_opt('curl_executable') or 'curl'
 local BILIASS = mp.get_opt('biliass_executable') or 'biliass'
-local TMPDIR = mp.get_opt('tmpdir') or '/tmp'
+local TMPDIR = mp.get_opt('tmpdir') or '/tmp/danmaku/'
 local BILIASS_OPTS = {}
-for token in (mp.get_opt('biliass_options') or ''):gmatch('[^%s]+') do
+for token in (mp.get_opt('biliass_options') or '-fs 48 -a 0.5 -p 270 -dm 10'):gmatch('[^%s]+') do
 	BILIASS_OPTS[#BILIASS_OPTS + 1] = token
 end
 local utils = require 'mp.utils'
@@ -30,7 +31,8 @@ function download_xml()
 		mp.msg.debug('no XML danmaku found')
 		return
 	end
-	xml_filename = TMPDIR..'/'..os.time()..'.danmaku.xml'
+	os.execute('mkdir -p '..TMPDIR)
+	xml_filename = TMPDIR..mp.get_property('pid')..'.xml'
 	local curl_args = {
 		CURL, url,
 		'--silent',
@@ -53,7 +55,7 @@ function replace_sub()
 		return
 	end
 	local resolution = width..'x'..height
-	local ass_filename = TMPDIR..'/'..os.time()..'.danmaku.ass'
+	local ass_filename = TMPDIR..mp.get_property('pid')..'.ass'
 	local biliass_args = {
 		BILIASS, xml_filename,
 		'--size', resolution,
@@ -79,6 +81,11 @@ function replace_sub()
 	end
 end
 
+function shutdown_handler()
+	os.execute('rm -f '..TMPDIR..mp.get_property('pid')..'.*')
+end
+
 mp.register_event('file-loaded', download_xml)
 mp.observe_property('osd-width', nil, replace_sub)
 mp.observe_property('osd-height', nil, replace_sub)
+mp.register_event("shutdown", shutdown_handler)
