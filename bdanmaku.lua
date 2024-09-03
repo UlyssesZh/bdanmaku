@@ -82,7 +82,8 @@ function replace_sub()
 end
 
 function shutdown_handler()
-	os.execute('rm -f '..TMPDIR..mp.get_property('pid')..'.*')
+	os.remove(TMPDIR..'/'..mp.get_property('pid')..'.xml')
+	os.remove(TMPDIR..'/'..mp.get_property('pid')..'.ass')
 end
 
 mp.register_event('file-loaded', download_xml)
