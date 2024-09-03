@@ -31,7 +31,9 @@ function download_xml()
 		mp.msg.debug('no XML danmaku found')
 		return
 	end
-	os.execute('mkdir -p '..TMPDIR)
+	if os.execute('mkdir -p '..TMPDIR) ~= 0 then
+		os.execute('powershell mkdir '..TMPDIR)
+	end
 	xml_filename = TMPDIR..'/'..mp.get_property('pid')..'.xml'
 	local curl_args = {
 		CURL, url,
