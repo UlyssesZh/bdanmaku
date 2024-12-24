@@ -7,7 +7,7 @@ local CURL = mp.get_opt('curl_executable') or 'curl'
 local BILIASS = mp.get_opt('biliass_executable') or 'biliass'
 local TMPDIR = mp.get_opt('tmpdir') or '/tmp/danmaku'
 local BILIASS_OPTS = {}
-for token in (mp.get_opt('biliass_options') or '--fontsize 48 --alpha 0.5 --protect 270 --duration-marquee 10'):gmatch('[^%s]+') do
+for token in (mp.get_opt('biliass_options') or '--fontsize 48 --alpha 0.5 --duration-marquee 10'):gmatch('[^%s]+') do
 	BILIASS_OPTS[#BILIASS_OPTS + 1] = token
 end
 local utils = require 'mp.utils'
