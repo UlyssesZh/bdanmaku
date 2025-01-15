@@ -14,6 +14,16 @@ local utils = require 'mp.utils'
 
 local danmaku_track_id = nil
 local xml_filename = nil
+local has_unloaded = false
+
+function execute(command)
+	if _ENV then -- Lua 5.2
+		local success, status, code = os.execute(command)
+		return success and status == "exit" and code == 0
+	else
+		return os.execute(command) == 0
+	end
+end
 
 function download_xml()
 	local url = nil
@@ -31,8 +41,8 @@ function download_xml()
 		mp.msg.debug('no XML danmaku found')
 		return
 	end
-	if os.execute('mkdir -p '..TMPDIR) ~= 0 then
-		os.execute('powershell mkdir '..TMPDIR)
+	if not execute('mkdir -p '..TMPDIR) then
+		execute('powershell mkdir '..TMPDIR)
 	end
 	xml_filename = TMPDIR..'/'..mp.get_property('pid')..'.xml'
 	local curl_args = {
@@ -53,7 +63,7 @@ end
 
 function replace_sub()
 	local width, height, par = mp.get_osd_size()
-	if width == 0 or height == 0 or not xml_filename then
+	if width == 0 or height == 0 or not xml_filename or has_unloaded then
 		return
 	end
 	local resolution = width..'x'..height
@@ -83,7 +93,9 @@ function replace_sub()
 	end
 end
 
-function shutdown_handler()
+function unload_handler()
+	mp.msg.debug('unload handler start')
+	has_unloaded = true;
 	os.remove(TMPDIR..'/'..mp.get_property('pid')..'.xml')
 	os.remove(TMPDIR..'/'..mp.get_property('pid')..'.ass')
 end
@@ -91,4 +103,4 @@ end
 mp.register_event('file-loaded', download_xml)
 mp.observe_property('osd-width', nil, replace_sub)
 mp.observe_property('osd-height', nil, replace_sub)
-mp.register_event("shutdown", shutdown_handler)
+mp.add_hook('on_unload', 50, unload_handler)
